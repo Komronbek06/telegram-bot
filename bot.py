@@ -58,6 +58,9 @@ async def handle_message(message: types.Message):
 async def main():
     logger.info("Bot ishga tushmoqda...")
     try:
+        # Avvalgi webhook-larni o'chiramiz
+        await bot.delete_webhook(drop_pending_updates=True)
+        # Polling ni boshlaymiz
         await dp.start_polling(bot)
     except Exception as e:
         logger.error(f"Xatolik yuz berdi: {e}")
