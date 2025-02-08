@@ -24,8 +24,9 @@ dp = Dispatcher()
 
 # Web app yaratish
 app = web.Application()
+routes = web.RouteTableDef()
 
-# Health check uchun route
+@routes.get('/')
 async def health_check(request):
     return web.Response(text='Bot ishlayapti!')
 
@@ -64,31 +65,26 @@ async def handle_message(message: types.Message):
         logger.error(f"Error processing message: {e}")
         await message.reply("Xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.")
 
-async def on_startup(app):
+async def start_bot():
     # Webhook ni o'chirish
     await bot.delete_webhook(drop_pending_updates=True)
     # Polling ni boshlash
-    asyncio.create_task(dp.start_polling(bot))
+    await dp.start_polling(bot, skip_updates=True)
 
-async def main():
+def main():
     logger.info("Bot ishga tushmoqda...")
-    try:
-        # Route qo'shish
-        app.router.add_get('/', health_check)
-        # Startup handler
-        app.on_startup.append(on_startup)
-        # Web server ni ishga tushirish
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, '0.0.0.0', PORT)
-        await site.start()
-        
-        # Serverni ishga tushirish
-        logger.info(f"Web server started on port {PORT}")
-        await asyncio.Event().wait()  # Server ni doimiy ishlatish
-        
-    except Exception as e:
-        logger.error(f"Xatolik yuz berdi: {e}")
+    app.add_routes(routes)
+    
+    # Bot va web server ni parallel ishga tushirish
+    web.run_app(
+        app,
+        host='0.0.0.0',
+        port=PORT,
+        loop=asyncio.get_event_loop()
+    )
+    
+    # Bot ni ishga tushirish
+    asyncio.run(start_bot())
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
