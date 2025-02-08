@@ -4,6 +4,7 @@ import asyncio
 from openai import OpenAI
 from aiogram.filters import Command
 import logging
+from aiohttp import web
 
 # Logging sozlamalari
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 # Bot tokeni va OpenAI API kaliti
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+PORT = int(os.environ.get('PORT', 8080))
 
 # OpenAI client yaratish
 client = OpenAI(api_key=OPENAI_API_KEY)
@@ -19,6 +21,13 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # Bot va dispatcher yaratish
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
+
+# Web app yaratish
+app = web.Application()
+
+# Health check uchun route
+async def health_check(request):
+    return web.Response(text='Bot ishlayapti!')
 
 # /start buyrug'i
 @dp.message(Command('start'))
@@ -55,13 +64,29 @@ async def handle_message(message: types.Message):
         logger.error(f"Error processing message: {e}")
         await message.reply("Xatolik yuz berdi. Iltimos, keyinroq urinib ko'ring.")
 
+async def on_startup(app):
+    # Webhook ni o'chirish
+    await bot.delete_webhook(drop_pending_updates=True)
+    # Polling ni boshlash
+    asyncio.create_task(dp.start_polling(bot))
+
 async def main():
     logger.info("Bot ishga tushmoqda...")
     try:
-        # Avvalgi webhook-larni o'chiramiz
-        await bot.delete_webhook(drop_pending_updates=True)
-        # Polling ni boshlaymiz
-        await dp.start_polling(bot)
+        # Route qo'shish
+        app.router.add_get('/', health_check)
+        # Startup handler
+        app.on_startup.append(on_startup)
+        # Web server ni ishga tushirish
+        runner = web.AppRunner(app)
+        await runner.setup()
+        site = web.TCPSite(runner, '0.0.0.0', PORT)
+        await site.start()
+        
+        # Serverni ishga tushirish
+        logger.info(f"Web server started on port {PORT}")
+        await asyncio.Event().wait()  # Server ni doimiy ishlatish
+        
     except Exception as e:
         logger.error(f"Xatolik yuz berdi: {e}")
 
