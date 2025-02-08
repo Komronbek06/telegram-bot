@@ -1,7 +1,7 @@
 import os
 from aiogram import Bot, Dispatcher, types
 import asyncio
-import openai
+from openai import OpenAI
 from aiogram.filters import Command
 import logging
 
@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# OpenAI API kalitini o'rnatish
-openai.api_key = OPENAI_API_KEY
+# OpenAI client yaratish
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # Bot va dispatcher yaratish
 bot = Bot(token=BOT_TOKEN)
@@ -39,7 +39,7 @@ async def handle_message(message: types.Message):
         logger.info(f"Received message from {message.from_user.id}: {message.text}")
         
         # OpenAI ga so'rov yuborish
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "user", "content": message.text}
